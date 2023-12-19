@@ -23,3 +23,13 @@ jobs:
 
     - name: Build
       run: go build -v ./...
+
+    - name: SCP deploy action
+      uses: nogsantos/ssh-scp-deploy@v1.3.0
+      with:
+        src: ./telegram_bot
+        host: ${{ secrets.SSH_HOST }}
+        remote: ${{ secrets.SSH_DIR }}
+        port: ${{ secrets.SSH_PORT }}
+        user: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
