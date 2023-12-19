@@ -22,7 +22,7 @@ jobs:
         go-version: '1.21'
 
     - name: Build
-      run: go build -v ./...
+      run: CGO_ENABLED=0 go build -v ./...
 
     - name: SCP deploy action
       uses: nogsantos/ssh-scp-deploy@v1.3.0
