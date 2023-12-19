@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	minMinutes = 1
-	maxMinutes = 5
+	minMinutes = 240
+	maxMinutes = 300
 )
 
 func init() {
