@@ -139,6 +139,6 @@ func saveChannelNextTime(channel *Channel, next int64) {
 }
 
 func escapeQuotes(text string) string {
-	re := regexp.MustCompile(`^"|"$`)
-	return re.ReplaceAllString(text, "")
+	re := regexp.MustCompile(`^"(.*)"$`)
+	return re.ReplaceAllString(text, "$1")
 }

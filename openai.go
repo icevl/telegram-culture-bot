@@ -21,7 +21,7 @@ func (o *OpenAI) GetAnswer(message string) (string, bool) {
 	resp, err := o.Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
+			Model: openai.GPT4,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,
