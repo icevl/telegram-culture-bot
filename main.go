@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
-	"strconv"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,10 +14,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const (
-	minMinutes = 120
-	maxMinutes = 180
-)
+const ConfigFile = "config.json"
 
 func init() {
 	godotenv.Load(".env")
@@ -39,43 +37,97 @@ func main() {
 		log.Panic(err)
 	}
 
-	openAI := NewOpenAI(aiToken)
-
-	go scheduler(bot, openAI)
-
 	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	channels := loadConfig()
+	openAI := NewOpenAI(aiToken)
+	saveDataChan := make(chan SaveData)
+
+	for _, channel := range channels {
+		go scheduler(bot, openAI, channel, saveDataChan)
+	}
+
+	go func() {
+		for data := range saveDataChan {
+			saveChannelNextTime(data.Channel, data.Next)
+		}
+	}()
 
 	<-make(chan bool)
 }
 
-func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI) {
-	channelIdent := os.Getenv("CHANNEL_ID")
-	id, _ := strconv.Atoi(channelIdent)
-	channelID := int64(id)
+func loadConfig() []Channel {
+	data := []Channel{}
+	file, err := os.ReadFile(ConfigFile)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = json.Unmarshal([]byte(file), &data)
+	return data
+}
+
+func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextChan chan<- SaveData) {
+	log.Printf("Starting scheduler for: '%s'", channel.Title)
 
 	for {
-		randomMinutes := rand.Intn(maxMinutes-minMinutes+1) + minMinutes
+		unixTime := time.Now().Unix()
+
+		if unixTime < channel.NextTime {
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+
+		randomMinutes := rand.Intn(channel.MaxMins-channel.MinMins+1) + channel.MinMins
 		randomDuration := time.Duration(randomMinutes) * time.Minute
 
-		gptText, ok := openAI.GetAnswer("Сгенерируй интересный факт о какой нибудь стране и ее культуре и что бы не только о Японии. В конце текста через разделитель '|' напиши страну о которой идет речь, после чего поставь разделитель '|' и emoji для страны")
+		gptText, ok := openAI.GetAnswer(channel.Prompt)
 		if !ok {
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		data := strings.Split(gptText, "|")
+		text := gptText
 
-		emoji, country, fact := data[2], data[1], data[0]
-		text := fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
+		if len(data) == 3 {
+			emoji, country, fact := data[2], data[1], data[0]
+			text = fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
+		}
 
-		msg := tgbotapi.NewMessage(channelID, text)
+		msg := tgbotapi.NewMessage(channel.ChannelID, excapeQuotes(text))
 		msg.ParseMode = "markdown"
 
 		bot.Send(msg)
 
-		fmt.Printf("Next after %d mins", randomMinutes)
-		fmt.Println()
+		channel.NextTime = time.Now().Add(randomDuration).Unix()
 
-		time.Sleep(randomDuration)
+		log.Printf("Next message for '%s' will be sent in %d minutes", channel.Title, randomMinutes)
+
+		saveData := SaveData{
+			Channel: &channel,
+			Next:    channel.NextTime,
+		}
+
+		saveNextChan <- saveData
 	}
+}
+
+func saveChannelNextTime(channel *Channel, next int64) {
+	channels := loadConfig()
+
+	for i, ch := range channels {
+		if ch.Prompt == channel.Prompt {
+			channels[i].NextTime = next
+		}
+	}
+
+	file, _ := json.MarshalIndent(channels, "", " ")
+	_ = os.WriteFile(ConfigFile, file, 0644)
+}
+
+func excapeQuotes(text string) string {
+	re := regexp.MustCompile(`^"|"$`)
+	return re.ReplaceAllString(text, "")
 }

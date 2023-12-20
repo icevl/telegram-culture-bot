@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"regexp"
 
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -19,8 +18,6 @@ func NewOpenAI(token string) *OpenAI {
 }
 
 func (o *OpenAI) GetAnswer(message string) (string, bool) {
-	re := regexp.MustCompile(`^"|"$`)
-
 	resp, err := o.Client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
@@ -40,7 +37,7 @@ func (o *OpenAI) GetAnswer(message string) (string, bool) {
 	}
 
 	resultText := resp.Choices[0].Message.Content
-	response := re.ReplaceAllString(resultText, "")
+	response := excapeQuotes(resultText)
 
 	return response, true
 }
