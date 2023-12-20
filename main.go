@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	minMinutes = 240
-	maxMinutes = 300
+	minMinutes = 120
+	maxMinutes = 180
 )
 
 func init() {
@@ -46,7 +46,6 @@ func main() {
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	<-make(chan bool)
-
 }
 
 func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI) {
@@ -58,18 +57,23 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI) {
 		randomMinutes := rand.Intn(maxMinutes-minMinutes+1) + minMinutes
 		randomDuration := time.Duration(randomMinutes) * time.Minute
 
-		gptText, _ := openAI.GetAnswer("Сгенерируй интересный факт о какой нибудь стране и ее культуре и что бы не только о Японии. В конце текста через разделитель '|' напиши страну о которой идет речь, после чего поставь разделитель '|' и emoji для страны")
+		gptText, ok := openAI.GetAnswer("Сгенерируй интересный факт о какой нибудь стране и ее культуре и что бы не только о Японии. В конце текста через разделитель '|' напиши страну о которой идет речь, после чего поставь разделитель '|' и emoji для страны")
+		if !ok {
+			time.Sleep(10 * time.Second)
+			continue
+		}
 
 		data := strings.Split(gptText, "|")
 
 		emoji, country, fact := data[2], data[1], data[0]
-
 		text := fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
+
 		msg := tgbotapi.NewMessage(channelID, text)
 		msg.ParseMode = "markdown"
+
 		bot.Send(msg)
 
-		fmt.Printf("Run scheduler. Next after %d mins", randomMinutes)
+		fmt.Printf("Next after %d mins", randomMinutes)
 		fmt.Println()
 
 		time.Sleep(randomDuration)
