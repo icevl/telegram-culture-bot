@@ -17,7 +17,12 @@ import (
 const ConfigFile = "config.json"
 
 func init() {
-	godotenv.Load(".env")
+	err := godotenv.Load(".env")
+
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	log.SetOutput(os.Stdout)
 }
 
@@ -100,7 +105,12 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 		msg := tgbotapi.NewMessage(channel.ChannelID, text)
 		msg.ParseMode = "markdown"
 
-		bot.Send(msg)
+		_, err := bot.Send(msg)
+
+		if err != nil {
+			log.Printf("Error sending message: %s", err)
+			continue
+		}
 
 		channel.NextTime = time.Now().Add(randomDuration).Unix()
 
