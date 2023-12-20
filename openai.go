@@ -37,7 +37,7 @@ func (o *OpenAI) GetAnswer(message string) (string, bool) {
 	}
 
 	resultText := resp.Choices[0].Message.Content
-	response := excapeQuotes(resultText)
+	response := escapeQuotes(resultText)
 
 	return response, true
 }

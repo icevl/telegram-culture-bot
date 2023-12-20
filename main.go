@@ -93,7 +93,7 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 		text := gptText
 
 		if len(data) == 3 {
-			emoji, country, fact := data[2], data[1], excapeQuotes(data[0])
+			emoji, country, fact := data[2], data[1], escapeQuotes(data[0])
 			text = fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
 		}
 
@@ -128,7 +128,7 @@ func saveChannelNextTime(channel *Channel, next int64) {
 	_ = os.WriteFile(ConfigFile, file, 0644)
 }
 
-func excapeQuotes(text string) string {
+func escapeQuotes(text string) string {
 	re := regexp.MustCompile(`^"|"$`)
 	return re.ReplaceAllString(text, "")
 }
