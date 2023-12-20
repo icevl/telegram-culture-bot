@@ -18,6 +18,7 @@ const ConfigFile = "config.json"
 
 func init() {
 	godotenv.Load(".env")
+	log.SetOutput(os.Stdout)
 }
 
 func main() {
@@ -92,11 +93,11 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 		text := gptText
 
 		if len(data) == 3 {
-			emoji, country, fact := data[2], data[1], data[0]
+			emoji, country, fact := data[2], data[1], excapeQuotes(data[0])
 			text = fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
 		}
 
-		msg := tgbotapi.NewMessage(channel.ChannelID, excapeQuotes(text))
+		msg := tgbotapi.NewMessage(channel.ChannelID, text)
 		msg.ParseMode = "markdown"
 
 		bot.Send(msg)
