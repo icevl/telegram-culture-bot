@@ -102,14 +102,16 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 			text = fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
 		}
 
-		msg := tgbotapi.NewMessage(channel.ChannelID, text)
-		msg.ParseMode = "markdown"
-
-		_, err := bot.Send(msg)
-
-		if err != nil {
-			log.Printf("Error sending message: %s", err)
-			continue
+		if channel.Image != "" {
+			ok := sendWithPhoto(bot, openAI, channel, text)
+			if !ok {
+				continue
+			}
+		} else {
+			ok := sendTextOnly(bot, openAI, channel, text)
+			if !ok {
+				continue
+			}
 		}
 
 		channel.NextTime = time.Now().Add(randomDuration).Unix()
@@ -123,6 +125,53 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 
 		saveNextChan <- saveData
 	}
+}
+func sendTextOnly(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, text string) bool {
+	msg := tgbotapi.NewMessage(channel.ChatID, text)
+	msg.ParseMode = "markdown"
+	_, err := bot.Send(msg)
+
+	if err != nil {
+		log.Printf("Error sending message: %s", err)
+		return false
+	}
+
+	return true
+}
+
+func sendWithPhoto(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, text string) bool {
+	picturePrompt := channel.Image
+
+	if channel.Image == "from_prompt_result" {
+		picturePrompt = text
+	}
+
+	if picturePrompt == "" {
+		log.Println("No picture prompt provided")
+		return false
+	}
+
+	file, ok := openAI.GetImage(picturePrompt)
+	if !ok {
+		return false
+	}
+
+	imageData, _ := os.ReadFile(file)
+	blob := tgbotapi.FileBytes{Name: "image.png", Bytes: imageData}
+
+	msg := tgbotapi.NewPhoto(channel.ChatID, blob)
+	msg.ParseMode = "markdown"
+	msg.Caption = text
+
+	_, err := bot.Send(msg)
+	os.Remove(file)
+
+	if err != nil {
+		log.Printf("Error sending message: %s", err)
+		return false
+	}
+
+	return true
 }
 
 func saveChannelNextTime(channel *Channel, next int64) {
