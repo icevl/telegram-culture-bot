@@ -43,6 +43,7 @@ func main() {
 		log.Panic(err)
 	}
 
+	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	channels := loadConfig()
@@ -58,6 +59,8 @@ func main() {
 			saveChannelNextTime(data.Channel, data.Next)
 		}
 	}()
+
+	go eventListener(bot)
 
 	<-make(chan bool)
 }
@@ -98,8 +101,8 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 		text := gptText
 
 		if len(data) == 3 {
-			emoji, country, fact := data[2], data[1], escapeQuotes(data[0])
-			text = fmt.Sprintf("%s *%s*\n\n%s", emoji, country, fact)
+			emoji, title, body := data[2], escapeQuotes(data[1]), escapeQuotes(data[0])
+			text = fmt.Sprintf("%s *%s*\n\n%s", emoji, title, body)
 		}
 
 		if channel.Image != "" {
@@ -126,6 +129,20 @@ func scheduler(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, saveNextCh
 		saveNextChan <- saveData
 	}
 }
+
+func eventListener(bot *tgbotapi.BotAPI) {
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates := bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		if update.Message != nil {
+			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+		}
+	}
+}
+
 func sendTextOnly(bot *tgbotapi.BotAPI, openAI *OpenAI, channel Channel, text string) bool {
 	msg := tgbotapi.NewMessage(channel.ChatID, text)
 	msg.ParseMode = "markdown"
