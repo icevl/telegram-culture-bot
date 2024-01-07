@@ -73,7 +73,11 @@ func loadConfig() []Channel {
 		log.Fatal(err)
 	}
 
-	_ = json.Unmarshal([]byte(file), &data)
+	err = json.Unmarshal([]byte(file), &data)
+	if err != nil {
+		log.Panic(err)
+	}
+
 	return data
 }
 
